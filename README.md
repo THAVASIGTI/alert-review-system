@@ -12,7 +12,7 @@ cron */15 -> scrape newest reviews (Playwright + xvfb)
 
 | File | Purpose |
 |---|---|
-| `main.py` | One-shot run: scrape, then store in the db, then mail. `--seed` stores reviews without mailing. `--dry-run` writes nothing and sends nothing. |
+| `main.py` | One-shot run: scrape, then store in the db, then mail. `--seed` stores reviews without mailing. `--dry-run` writes nothing and sends nothing. `--test-mail` sends one sample alert to check the mail settings. |
 | `scrape_reviews.py` | Google search, then the "N Google reviews" panel, sorted by Newest. Can also be run on its own. |
 | `db.py` | SQLite store. `alert_state` is `none` / `pending` / `sent` / `seeded`. |
 | `mailer.py` | HTML alert mail over SMTP (Gmail by default). |

@@ -44,7 +44,7 @@ def build_html(reviews: list[dict], rating_limit: int, now: str) -> str:
 </body></html>"""
 
 
-def send_alert(reviews: list[dict], rating_limit: int) -> None:
+def send_alert(reviews: list[dict], rating_limit: int, subject_prefix: str = "") -> None:
     user, pwd = os.environ["SMTP_USER"], os.environ["SMTP_PASS"]
     recipients = [a.strip() for a in os.environ["MAIL_TO"].split(",") if a.strip()]
     if not recipients:
@@ -54,7 +54,7 @@ def send_alert(reviews: list[dict], rating_limit: int) -> None:
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Negative review alert: {len(reviews)} new review(s) below {rating_limit} stars | {now} UTC"
+    msg["Subject"] = f"{subject_prefix}Negative review alert: {len(reviews)} new review(s) below {rating_limit} stars | {now} UTC"
     msg["From"] = user
     msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(build_html(reviews, rating_limit, now), "html", "utf-8"))

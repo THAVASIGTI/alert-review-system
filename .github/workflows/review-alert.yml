@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "normal | seed (store without mail) | dry-run (no db, no mail)"
+        description: "normal | seed (store without mail) | dry-run (no db, no mail) | test-mail (send sample mail only)"
         default: "normal"
         type: choice
-        options: [normal, seed, dry-run]
+        options: [normal, seed, dry-run, test-mail]
 
 permissions:
   contents: write               # commit data/reviews.db back
@@ -55,6 +55,7 @@ jobs:
           case "$MODE" in
             seed)    FLAG=--seed ;;
             dry-run) FLAG=--dry-run ;;
+            test-mail) python main.py --test-mail; exit $? ;;
             *)       FLAG= ;;
           esac
           xvfb-run --auto-servernum --server-args="-screen 0 1366x900x24" python main.py $FLAG

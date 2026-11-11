@@ -9,6 +9,7 @@ Usage:
     python main.py                 # normal run
     python main.py --seed          # store current reviews without mailing (first setup)
     python main.py --dry-run       # scrape + show what would be mailed; no db write, no mail
+    python main.py --test-mail     # send one sample alert mail (checks SMTP secrets); no scrape, no db
 
 The first run for a business with an empty db is treated as --seed automatically,
 so existing old reviews are not mailed.
@@ -48,11 +49,35 @@ def gh_error(msg: str) -> None:
         print("::error::" + msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
 
 
+def send_test_mail(rating_limit: int) -> int:
+    sample = [{
+        "business": "TEST - sample alert (not a real review)",
+        "name": "Test Reviewer",
+        "rating": 1,
+        "date_relative": "just now",
+        "text": "This is a dummy review sent by `python main.py --test-mail` "
+                "to check that the SMTP settings work. No action needed.",
+        "profile_url": None,
+    }]
+    try:
+        send_alert(sample, rating_limit, subject_prefix="[TEST] ")
+    except Exception as e:
+        log.error("Test mail failed: %s", e)
+        gh_error(f"Test mail failed: {e}")
+        return 1
+    log.info("Test mail sent to %s", os.environ.get("MAIL_TO"))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", action="store_true", help="store reviews without sending mail")
     ap.add_argument("--dry-run", action="store_true", help="no db write, no mail")
+    ap.add_argument("--test-mail", action="store_true", help="send a sample alert mail and exit")
     a = ap.parse_args()
+
+    if a.test_mail:
+        return send_test_mail(int(env("RATING_LIMIT", "4")))
 
     queries = [q.strip() for q in env("QUERIES", "Royal Migration Solutions Dubai reviews").split(";") if q.strip()]
     limit = int(env("LIMIT", "15"))
