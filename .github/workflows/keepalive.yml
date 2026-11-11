@@ -1,0 +1,45 @@
+name: Keepalive
+
+# GitHub disables scheduled workflows in public repos after 60 days without commits.
+# This checks the last commit date daily and pushes an empty commit if it is >= 50 days old.
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # once a day, 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Push empty commit if repo is inactive
+        shell: python
+        env:
+          MAX_AGE_DAYS: "50"
+        run: |
+          import os, subprocess, time
+
+          def git(*args):
+              return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout.strip()
+
+          last = int(git("log", "-1", "--format=%ct"))
+          age = (time.time() - last) / 86400
+          limit = int(os.environ["MAX_AGE_DAYS"])
+          print(f"Last commit: {age:.1f} days ago (threshold {limit})")
+
+          if age < limit:
+              print("Recent activity, nothing to do.")
+          else:
+              git("config", "user.name", "github-actions[bot]")
+              git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
+              git("commit", "--allow-empty", "-m", f"keepalive: last commit was {age:.0f} days ago")
+              git("push")
+              print("Pushed empty keepalive commit.")

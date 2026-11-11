@@ -1,0 +1,84 @@
+name: Review alert
+
+on:
+  schedule:
+    # Every 15 min (UTC). GitHub minimum is 5 min; runs are often delayed 5-20 min under load.
+    #   "*/10 * * * *" every 10m  |  "*/15 * * * *" every 15m  |  "0 * * * *" hourly
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normal | seed (store without mail) | dry-run (no db, no mail)"
+        default: "normal"
+        type: choice
+        options: [normal, seed, dry-run]
+
+permissions:
+  contents: write               # commit data/reviews.db back
+
+concurrency:
+  group: review-alert           # never two runs writing the db at once
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y xvfb
+
+      - name: Check reviews
+        # Headed Chromium inside a virtual display: Google CAPTCHAs headless browsers much more often.
+        env:
+          QUERIES: ${{ vars.QUERIES }}            # optional repo variables (Settings > Variables)
+          LIMIT: ${{ vars.LIMIT }}
+          RATING_LIMIT: ${{ vars.RATING_LIMIT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}     # repo secrets (Settings > Secrets)
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MODE: ${{ inputs.mode || 'normal' }}
+        run: |
+          case "$MODE" in
+            seed)    FLAG=--seed ;;
+            dry-run) FLAG=--dry-run ;;
+            *)       FLAG= ;;
+          esac
+          xvfb-run --auto-servernum --server-args="-screen 0 1366x900x24" python main.py $FLAG
+
+      - name: Upload snapshot / error screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviews-${{ github.run_id }}
+          path: output/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Commit review db
+        if: always()              # keep newly stored reviews even if the mail step failed
+        run: |
+          [ -f data/reviews.db ] || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/reviews.db
+          if git diff --cached --quiet; then echo "No db changes"; exit 0; fi
+          git commit -m "reviews db: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"   # in case keepalive pushed meanwhile
+          git push
