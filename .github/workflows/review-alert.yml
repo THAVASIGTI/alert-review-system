@@ -22,41 +22,23 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04      # pinned: ubuntu-latest moved to 26, Playwright --with-deps fails there
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # Official Playwright image: Python 3.12, Chromium for Playwright 1.58, its system libs,
+    # xvfb and git are preinstalled -> no apt/browser download on every run.
+    # The tag must match the playwright version in requirements.txt.
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.58.0-noble
+      options: --ipc=host       # recommended for Chromium in Docker
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-ubuntu-24.04-${{ hashFiles('requirements.txt') }}
-
-      # Split into steps (the failing one is visible on the public run page) with retries:
-      # apt mirrors / downloads on hosted runners are occasionally flaky.
       - name: Install Python packages
         run: |
-          for i in 1 2 3; do pip install -r requirements.txt && exit 0; echo "retry $i"; sleep 15; done; exit 1
-
-      - name: Install system packages (xvfb + Chromium deps)
-        run: |
           for i in 1 2 3; do
-            sudo apt-get update -o Acquire::Retries=3 \
-              && sudo apt-get install -y -o Acquire::Retries=3 xvfb \
-              && python -m playwright install-deps chromium \
-              && exit 0
-            echo "retry $i"; sleep 20
+            pip install --root-user-action=ignore -r requirements.txt && exit 0
+            echo "retry $i"; sleep 15
           done; exit 1
-
-      - name: Install Chromium
-        run: |
-          for i in 1 2 3; do python -m playwright install chromium && exit 0; echo "retry $i"; sleep 15; done; exit 1
 
       - name: Check reviews
         # Headed Chromium inside a virtual display: Google CAPTCHAs headless browsers much more often.
@@ -90,6 +72,7 @@ jobs:
         if: always()              # keep newly stored reviews even if the mail step failed
         run: |
           [ -f data/reviews.db ] || exit 0
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"   # repo owned by another uid in the container
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/reviews.db
