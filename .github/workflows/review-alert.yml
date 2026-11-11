@@ -2,9 +2,11 @@ name: Review alert
 
 on:
   schedule:
-    # Every 15 min (UTC). GitHub minimum is 5 min; runs are often delayed 5-20 min under load.
-    #   "*/10 * * * *" every 10m  |  "*/15 * * * *" every 15m  |  "0 * * * *" hourly
-    - cron: "*/15 * * * *"
+    # Every 15 min (UTC), on off-peak minutes: GitHub delays/drops many runs at :00/:15/:30/:45.
+    # GitHub minimum is 5 min; runs can still be delayed 5-20 min under load.
+    #   "2,12,22,32,42,52 * * * *" every 10m  |  "7,22,37,52 * * * *" every 15m  |  "7 * * * *" hourly
+    # What scheduled runs do is set by the repo variable SCHEDULE_MODE (default: normal).
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -50,10 +52,12 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}     # repo secrets (Settings > Secrets)
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
-          MODE: ${{ inputs.mode || 'normal' }}
+          # manual run: the chosen mode | scheduled run: repo variable SCHEDULE_MODE, else normal
+          MODE: ${{ inputs.mode || vars.SCHEDULE_MODE || 'normal' }}
         run: |
+          echo "Mode: $MODE (${{ github.event_name }})"
           case "$MODE" in
-            seed)    FLAG=--seed ;;
+            seed)    FLAG=--seed; echo "::warning::seed mode: new reviews are stored but NO alert mail is sent" ;;
             dry-run) FLAG=--dry-run ;;
             test-mail) python main.py --test-mail; exit $? ;;
             *)       FLAG= ;;

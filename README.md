@@ -1,9 +1,9 @@
 # alert-review-system
 
-Checks a business's newest Google reviews every 15 minutes on GitHub Actions and emails new reviews rated below 4 stars.
+Checks a business's newest Google reviews every 15 minutes (at :07, :22, :37, :52 UTC) on GitHub Actions and emails new reviews rated below 4 stars.
 
 ```
-cron */15 -> scrape newest reviews (Playwright + xvfb)
+cron 7,22,37,52 -> scrape newest reviews (Playwright + xvfb)
           -> store new ones in data/reviews.db (committed back to the repo)
           -> mail new reviews with rating < RATING_LIMIT -> mark them sent
 ```
@@ -31,6 +31,7 @@ cron */15 -> scrape newest reviews (Playwright + xvfb)
    - `LIMIT`: how many of the newest reviews to check (default 15).
    - `RATING_LIMIT`: alert when the rating is below this (default 4).
    - `GL`: Google results country code (default `ae`).
+   - `SCHEDULE_MODE`: what the 15-minute scheduled runs do: `normal` (default; store and mail) or `seed` (store only, **no alert mail**). Manual runs use the mode you pick.
 4. **Actions → Review alert → Run workflow** with mode `seed`. The first run for each query also seeds automatically, so existing reviews are never mailed.
 
 ## Behaviour
