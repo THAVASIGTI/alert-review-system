@@ -38,11 +38,25 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-ubuntu-24.04-${{ hashFiles('requirements.txt') }}
 
-      - name: Install dependencies
+      # Split into steps (the failing one is visible on the public run page) with retries:
+      # apt mirrors / downloads on hosted runners are occasionally flaky.
+      - name: Install Python packages
         run: |
-          pip install -r requirements.txt
-          python -m playwright install --with-deps chromium
-          sudo apt-get install -y xvfb
+          for i in 1 2 3; do pip install -r requirements.txt && exit 0; echo "retry $i"; sleep 15; done; exit 1
+
+      - name: Install system packages (xvfb + Chromium deps)
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y -o Acquire::Retries=3 xvfb \
+              && python -m playwright install-deps chromium \
+              && exit 0
+            echo "retry $i"; sleep 20
+          done; exit 1
+
+      - name: Install Chromium
+        run: |
+          for i in 1 2 3; do python -m playwright install chromium && exit 0; echo "retry $i"; sleep 15; done; exit 1
 
       - name: Check reviews
         # Headed Chromium inside a virtual display: Google CAPTCHAs headless browsers much more often.
