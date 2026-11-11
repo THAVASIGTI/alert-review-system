@@ -50,6 +50,7 @@ jobs:
           QUERIES: ${{ vars.QUERIES }}            # optional repo variables (Settings > Variables)
           LIMIT: ${{ vars.LIMIT }}
           RATING_LIMIT: ${{ vars.RATING_LIMIT }}
+          GL: ${{ vars.GL }}
           SMTP_USER: ${{ secrets.SMTP_USER }}     # repo secrets (Settings > Secrets)
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_TO: ${{ secrets.MAIL_TO }}

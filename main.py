@@ -14,7 +14,9 @@ The first run for a business with an empty db is treated as --seed automatically
 so existing old reviews are not mailed.
 
 Config (env, all optional):
-    QUERIES       Google search(es), separated by ';'   default: "royal migration reviews"
+    QUERIES       Google search(es), separated by ';'   default: "Royal Migration Solutions Dubai reviews"
+                  (use the full business name + city so Google shows the business panel)
+    GL            Google results country code            default: ae
     LIMIT         newest reviews to check per query      default: 15
     RATING_LIMIT  alert when rating < this               default: 4
     DB_PATH       default: data/reviews.db
@@ -52,17 +54,18 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="no db write, no mail")
     a = ap.parse_args()
 
-    queries = [q.strip() for q in env("QUERIES", "royal migration reviews").split(";") if q.strip()]
+    queries = [q.strip() for q in env("QUERIES", "Royal Migration Solutions Dubai reviews").split(";") if q.strip()]
     limit = int(env("LIMIT", "15"))
     rating_limit = int(env("RATING_LIMIT", "4"))
     headless = env("HEADLESS", "0") == "1"
+    gl = env("GL", "ae")
     out_dir = Path("output")
     db = None if a.dry_run else ReviewDB(Path(env("DB_PATH", "data/reviews.db")))
 
     failed = 0
     for query in queries:
         try:
-            reviews, total = asyncio.run(scrape(query, limit, "newest", headless, out_dir))
+            reviews, total = asyncio.run(scrape(query, limit, "newest", headless, out_dir, gl))
             save(reviews, query, out_dir)   # json/csv snapshot -> uploaded as Actions artifact
         except Exception as e:
             log.error("%s: scrape failed: %s", query, e)

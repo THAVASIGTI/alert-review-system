@@ -27,9 +27,10 @@ cron */15 -> scrape newest reviews (Playwright + xvfb)
    - `SMTP_PASS`: a Gmail [App Password](https://myaccount.google.com/apppasswords), not the account password. 2-Step Verification must be on.
    - `MAIL_TO`: recipients, comma-separated.
 3. **Variables** (optional):
-   - `QUERIES`: Google searches separated by `;`, e.g. `royal migration reviews;royal real estate reviews`.
+   - `QUERIES`: Google searches separated by `;`, e.g. `Royal Migration Solutions Dubai reviews;Royal Real Estate Dubai reviews`. Use the full business name and city: GitHub's runners are in the US, and for a short query Google shows no business panel there.
    - `LIMIT`: how many of the newest reviews to check (default 15).
    - `RATING_LIMIT`: alert when the rating is below this (default 4).
+   - `GL`: Google results country code (default `ae`).
 4. **Actions → Review alert → Run workflow** with mode `seed`. The first run for each query also seeds automatically, so existing reviews are never mailed.
 
 ## Behaviour

@@ -3,7 +3,7 @@
 Google Search -> knowledge panel "N Google reviews" -> sort by Newest -> extract top N reviews.
 
 Usage:
-    python scrape_reviews.py --query "royal migration reviews" --limit 15
+    python scrape_reviews.py --query "Royal Migration Solutions Dubai reviews" --limit 15 --gl ae
     python scrape_reviews.py --headless          # may trigger Google CAPTCHA
     python scrape_reviews.py --sort lowest       # most_relevant | newest | highest | lowest
 
@@ -76,7 +76,8 @@ def parse_reviewer_count(info: str) -> int | None:
     return int(m.group(1).replace(",", "")) if m else None
 
 
-async def scrape(query: str, limit: int, sort: str, headless: bool, out_dir: Path) -> tuple[list[dict], str]:
+async def scrape(query: str, limit: int, sort: str, headless: bool, out_dir: Path,
+                 gl: str = "ae") -> tuple[list[dict], str]:
     """Returns (reviews, business_total_text e.g. '1,241 Google reviews')."""
     out_dir.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
@@ -92,7 +93,9 @@ async def scrape(query: str, limit: int, sort: str, headless: bool, out_dir: Pat
         )
         page = await ctx.new_page()
         try:
-            await page.goto(f"https://www.google.com/search?q={quote_plus(query)}&hl=en",
+            # gl = results country. GitHub runners are in the US, where Google hides the business panel
+            # (and its "N Google reviews" link) for a Dubai business; gl=ae brings it back.
+            await page.goto(f"https://www.google.com/search?q={quote_plus(query)}&hl=en&gl={gl}",
                             wait_until="domcontentloaded")
 
             # Cookie consent (EU / some regions)
@@ -194,7 +197,8 @@ def save(reviews: list[dict], query: str, out_dir: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--query", default="royal migration reviews")
+    ap.add_argument("--query", default="Royal Migration Solutions Dubai reviews")
+    ap.add_argument("--gl", default="ae", help="Google results country code")
     ap.add_argument("--limit", type=int, default=15)
     ap.add_argument("--sort", choices=SORT_KEYS, default="newest")
     ap.add_argument("--headless", action="store_true", help="headless (Google is more likely to CAPTCHA)")
@@ -202,7 +206,7 @@ def main() -> None:
     a = ap.parse_args()
 
     out = Path(a.out)
-    reviews, _ = asyncio.run(scrape(a.query, a.limit, a.sort, a.headless, out))
+    reviews, _ = asyncio.run(scrape(a.query, a.limit, a.sort, a.headless, out, a.gl))
     save(reviews, a.query, out)
     if len(reviews) == 0:
         sys.exit(2)
