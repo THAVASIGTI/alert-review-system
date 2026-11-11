@@ -147,9 +147,16 @@ async def scrape(query: str, limit: int, sort: str, headless: bool, out_dir: Pat
                         pass
 
             raw = await page.locator(SEL["card"]).evaluate_all(EXTRACT_JS)
-        except Exception:
+        except Exception as e:
             await page.screenshot(path=str(out_dir / "error.png"), full_page=False)
-            raise
+            # where we ended up: helps tell CAPTCHA / consent page / layout change apart
+            try:
+                body = (await page.locator("body").inner_text(timeout=3000))[:300]
+            except Exception:
+                body = ""
+            title = await page.title()
+            raise RuntimeError(f"{type(e).__name__}: {str(e).splitlines()[0][:200]} | url={page.url[:150]} "
+                               f"| title={title!r} | page={' '.join(body.split())!r}") from e
         finally:
             await browser.close()
 

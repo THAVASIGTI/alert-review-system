@@ -40,6 +40,12 @@ def env(name: str, default: str) -> str:
     return os.environ.get(name) or default   # treat empty string (unset repo variable) as default
 
 
+def gh_error(msg: str) -> None:
+    """Also emit as a GitHub Actions annotation (visible on the run page without opening logs)."""
+    if os.environ.get("GITHUB_ACTIONS"):
+        print("::error::" + msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", action="store_true", help="store reviews without sending mail")
@@ -60,10 +66,12 @@ def main() -> int:
             save(reviews, query, out_dir)   # json/csv snapshot -> uploaded as Actions artifact
         except Exception as e:
             log.error("%s: scrape failed: %s", query, e)
+            gh_error(f"{query}: scrape failed: {e}")
             failed += 1
             continue
         if not reviews:
             log.error("%s: 0 reviews extracted (selectors changed or CAPTCHA?)", query)
+            gh_error(f"{query}: 0 reviews extracted (selectors changed or CAPTCHA?)")
             failed += 1
             continue
 
@@ -92,6 +100,7 @@ def main() -> int:
                 send_alert(pending, rating_limit)
             except Exception as e:
                 log.error("Mail failed, will retry next run: %s", e)
+                gh_error(f"Mail failed, will retry next run: {e}")
                 failed += 1
             else:
                 db.mark_sent([r["review_id"] for r in pending],
