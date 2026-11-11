@@ -45,10 +45,13 @@ def build_html(reviews: list[dict], rating_limit: int, now: str) -> str:
 
 
 def send_alert(reviews: list[dict], rating_limit: int, subject_prefix: str = "") -> None:
-    user, pwd = os.environ["SMTP_USER"], os.environ["SMTP_PASS"]
-    recipients = [a.strip() for a in os.environ["MAIL_TO"].split(",") if a.strip()]
-    if not recipients:
-        raise RuntimeError("MAIL_TO is empty")
+    user = os.environ.get("SMTP_USER", "").strip()
+    pwd = os.environ.get("SMTP_PASS", "").replace(" ", "")   # app passwords are shown with spaces
+    recipients = [a.strip() for a in os.environ.get("MAIL_TO", "").split(",") if a.strip()]
+    missing = [n for n, v in (("SMTP_USER", user), ("SMTP_PASS", pwd), ("MAIL_TO", recipients)) if not v]
+    if missing:
+        raise RuntimeError(f"empty/missing secret(s): {', '.join(missing)} "
+                           "(must be Repository secrets with exactly these names)")
     host = os.environ.get("SMTP_HOST") or "smtp.gmail.com"
     port = int(os.environ.get("SMTP_PORT") or 587)
 
@@ -61,5 +64,12 @@ def send_alert(reviews: list[dict], rating_limit: int, subject_prefix: str = "")
 
     with smtplib.SMTP(host, port, timeout=60) as server:
         server.starttls()
-        server.login(user, pwd)
+        try:
+            server.login(user, pwd)
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPAuthenticationError) as e:
+            # Gmail usually just drops the connection on bad credentials
+            raise RuntimeError(
+                f"SMTP login rejected for '{user}' ({e}). Check SMTP_USER is the full Gmail address and "
+                f"SMTP_PASS is a 16-char App Password (2-Step Verification on), not the normal password"
+            ) from e
         server.sendmail(user, recipients, msg.as_string())
