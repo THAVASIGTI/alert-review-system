@@ -3,7 +3,7 @@
 Checks a business's newest Google reviews every 5 minutes (GitHub may delay or skip scheduled runs) on GitHub Actions and emails new reviews rated below 4 stars.
 
 ```
-cron 7,22,37,52 -> scrape newest reviews (Playwright + xvfb)
+cron */5        -> scrape newest reviews (Playwright + xvfb)
           -> store new ones in data/reviews.db (committed back to the repo)
           -> mail new reviews with rating < RATING_LIMIT -> mark them sent
 ```
