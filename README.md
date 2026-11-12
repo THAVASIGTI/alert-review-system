@@ -1,6 +1,6 @@
 # alert-review-system
 
-Checks a business's newest Google reviews every 15 minutes (at :07, :22, :37, :52 IST) on GitHub Actions and emails new reviews rated below 4 stars.
+Checks a business's newest Google reviews every 5 minutes (GitHub may delay or skip scheduled runs) on GitHub Actions and emails new reviews rated below 4 stars.
 
 ```
 cron 7,22,37,52 -> scrape newest reviews (Playwright + xvfb)

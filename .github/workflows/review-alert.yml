@@ -2,12 +2,10 @@ name: Review alert
 
 on:
   schedule:
-    # Every 15 min, in India time (IST), on off-peak minutes: GitHub delays/drops many runs
-    # at :00/:15/:30/:45. GitHub minimum is 5 min; runs can still be delayed or skipped under load.
-    #   "2,12,22,32,42,52 * * * *" every 10m  |  "7,22,37,52 * * * *" every 15m  |  "7 * * * *" hourly
+    # Every 5 min (GitHub's minimum interval). GitHub may delay or skip scheduled runs under load.
+    #   "*/5 * * * *" every 5m  |  "7,22,37,52 * * * *" every 15m  |  "7 * * * *" hourly
     # What scheduled runs do is set by the repo variable SCHEDULE_MODE (default: normal).
-    - cron: "7,22,37,52 * * * *"
-      timezone: "Asia/Kolkata"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       mode:
